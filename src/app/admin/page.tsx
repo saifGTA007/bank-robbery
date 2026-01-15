@@ -9,6 +9,7 @@ export default function AdminPage() {
   const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [recipientName, setRecipientName] = useState('');
+  const [checking, setChecking] = useState(true);
 
 
 useEffect(() => {
@@ -20,7 +21,9 @@ useEffect(() => {
           if (data.authorized) setIsAuthorized(true);
         }
       } catch (e) {
-        console.log("No active admin session");
+        console.log("No active session");
+      } finally {
+        setChecking(false); // Stop showing the loader
       }
     }
     checkSession();
@@ -83,6 +86,14 @@ const handleLogout = async () => {
     setToken('');
     window.location.href = '/';
   };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <main className="flex items-center justify-center min-h-screen p-4">
