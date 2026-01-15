@@ -5,12 +5,11 @@ import Link from 'next/link';
 
 export default function AdminPage() {
   const [pass, setPass] = useState('');
-  const [isAuthorized, setIsAuthorized] = useState(false); // New: Track login state
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [recipientName, setRecipientName] = useState('');
 
-  // Step 1: Login Check (can be expanded to a real session later)
   const handleAdminLogin = () => {
     if (pass.length > 0) {
       setIsAuthorized(true);
@@ -19,7 +18,6 @@ export default function AdminPage() {
     }
   };
 
-  // Step 2: Generate Token with Name
   const handleGenerate = async () => {
     setLoading(true);
     try {
@@ -28,7 +26,7 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
             adminPassword: sanitizeInput(pass),
-            name: sanitizeInput(recipientName) // Sending the name
+            name: sanitizeInput(recipientName)
          })
       });
       
@@ -37,7 +35,7 @@ export default function AdminPage() {
         setToken(data.token);
       } else {
         alert('Access Denied: Incorrect Administrative Password');
-        setIsAuthorized(false); // Boot them back to login if password fails
+        setIsAuthorized(false);
       }
     } catch (e) {
       alert('System Error: Could not reach Admin API');
@@ -50,7 +48,6 @@ export default function AdminPage() {
     <main className="flex items-center justify-center min-h-screen p-4">
       <div className="glass-card p-8 w-full max-w-md border-red-500/20">
         
-        {/* Header Section */}
         <div className="flex items-center gap-2 mb-6">
           <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
           <h2 className="text-xl font-bold uppercase tracking-widest text-red-500">
@@ -59,7 +56,6 @@ export default function AdminPage() {
         </div>
 
         {!isAuthorized ? (
-          /* STAGE 1: LOGIN UI */
           <div className="space-y-4">
             <p className="text-xs text-gray-400 mb-2">Authorization Required</p>
             <input 
@@ -77,7 +73,6 @@ export default function AdminPage() {
             </button>
           </div>
         ) : (
-          /* STAGE 2: GENERATOR UI */
           <div className="space-y-4">
             <p className="text-xs text-green-500 font-bold mb-2 italic">✓ System Authorized</p>
             
@@ -97,10 +92,19 @@ export default function AdminPage() {
             >
               {loading ? 'Processing...' : 'Generate Secure Invite'}
             </button>
+
+            {/* --- NEW: LINK TO ACTIVITY LOGS --- */}
+            <div className="mt-4 pt-4 border-t border-white/5">
+                <Link 
+                  href="/admin/logs" 
+                  className="flex items-center justify-center gap-2 text-xs text-gray-400 hover:text-blue-400 transition-colors py-2 border border-dashed border-gray-700 rounded-lg"
+                >
+                  📜 View System Audit Logs
+                </Link>
+            </div>
           </div>
         )}
 
-        {/* Display Generated Token */}
         {token && (
           <div className="mt-8 p-6 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-center">
             <p className="text-xs text-yellow-500 font-bold uppercase mb-2">Invite for {recipientName}</p>
