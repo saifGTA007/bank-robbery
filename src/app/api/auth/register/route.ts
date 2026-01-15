@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
 import { PrismaClient } from '@prisma/client';
+import { cookies } from 'next/headers';
 
 const prisma = new PrismaClient();
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -83,14 +84,25 @@ export async function POST(req: Request) {
                 });
 
 
-                await prisma.user.create({
-                    data: {
-                        username: token,
-                        name: invite?.recipient || 'Unknown Agent',
-                        credentialID: id,
-                        publicKey: Buffer.from(pubKey).toString('base64'),
-                        counter: BigInt(counter)
-                    }
+
+
+                const newUser = await prisma.user.create({
+                  data: {
+                    username: `user_${Date.now()}`,
+                    name: invite?.recipient || 'New Agent',
+                    credentialID: id,
+                    publicKey: Buffer.from(pubKey).toString('base64'),
+                    counter: BigInt(counter),
+                  },
+                });
+
+                const cookieStore = await cookies();
+                
+                cookieStore.set('userId', newUser.id, { 
+                    httpOnly: true, 
+                    secure: true, 
+                    sameSite: 'strict',
+                    maxAge: 60 * 60 * 24 * 7 // 1 week
                 });
 
                 await prisma.inviteToken.delete({
