@@ -1,10 +1,11 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { sanitizeInput } from '../utils/security';
 import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const hasCheckedAuth = useRef(false);
   
   // States
   const [pass, setPass] = useState('');
@@ -15,21 +16,31 @@ export default function AdminDashboard() {
   const [generatedToken, setGeneratedToken] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // 1. Initial Auth Check
-  useEffect(() => {
-    async function checkAuth() {
-      try {
-        const res = await fetch('/api/admin/check-auth', { cache: 'no-store' });
-        if (res.ok) {
+  
+useEffect(() => {
+  // If we have already checked auth in this session, STOP.
+  if (hasCheckedAuth.current) return;
+
+  async function checkAuth() {
+    hasCheckedAuth.current = true; // Mark as done immediately
+    try {
+      const res = await fetch('/api/admin/check-auth', { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.authorized) {
           setIsAuthorized(true);
           fetchLogs();
         }
-      } finally {
-        setLoading(false);
       }
+    } catch (e) {
+      console.error("Auth check failed");
+    } finally {
+      setLoading(false);
     }
-    checkAuth();
-  }, []);
+  }
+
+  checkAuth();
+}, []); // Keep this empty
 
   interface Log {
     id: string;
