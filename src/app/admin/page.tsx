@@ -47,31 +47,32 @@ useEffect(() => {
     }
   };
 
-  const handleGenerate = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            adminPassword: sanitizeInput(pass),
-            name: sanitizeInput(recipientName)
-         })
-      });
-      
+const handleGenerate = async () => {
+  setLoading(true);
+  try {
+    const res = await fetch('/api/admin/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+          // adminPassword removed! The server uses the cookie now.
+          name: sanitizeInput(recipientName) 
+       })
+    });
+    
+    if (res.ok) {
       const data = await res.json();
-      if (data.token) {
-        setToken(data.token);
-      } else {
-        alert('Access Denied: Incorrect Administrative Password');
-        setIsAuthorized(false);
-      }
-    } catch (e) {
-      alert('System Error: Could not reach Admin API');
-    } finally {
-      setLoading(false);
+      setToken(data.token);
+    } else {
+      // If the cookie expired, then we boot them
+      alert('Session Expired');
+      setIsAuthorized(false);
     }
-  };
+  } catch (e) {
+    alert('System Error');
+  } finally {
+    setLoading(false);
+  }
+};
 
 const handleLogout = async () => {
 
