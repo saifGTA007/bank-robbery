@@ -31,21 +31,26 @@ useEffect(() => {
 
 const handleAdminLogin = async () => {
   setLoading(true);
+  
+  // CLEAR OLD CLIENT COOKIES FIRST
+  // This removes any old "admin_auth" that wasn't set by the server
+  document.cookie = "admin_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
   try {
     const res = await fetch('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      // USE 'pass' DIRECTLY - do not use sanitizeInput here
       body: JSON.stringify({ password: pass }) 
     });
 
     if (res.ok) {
       setIsAuthorized(true);
+      setPass(''); // Clear password from memory after success
     } else {
       alert("Invalid Password");
     }
   } catch (e) {
-    alert("Login failed");
+    alert("Connection Error");
   } finally {
     setLoading(false);
   }
