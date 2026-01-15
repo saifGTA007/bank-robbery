@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String  @id @default(cuid())
+  username     String  @unique // This will be the token used to sign up
+  credentialID String  @unique // The fingerprint ID
+  publicKey    String  // The fingerprint public key
+  counter      BigInt  // Security counter for passkeys
+  transports   String? // How the key connects (usb, nfc, internal)
+  failedAttempts   Int      @default(0)
+  lockoutUntil     DateTime?
+}
+
+model InviteToken {
+  id        String  @id @default(cuid())
+  token     String  @unique
+  isUsed    Boolean @default(false)
+  createdAt DateTime @default(now())
+}
