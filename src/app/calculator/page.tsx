@@ -1,7 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function CalculatorPage() {
+  // --- New State for User Personalization ---
+  const [userName, setUserName] = useState<string>('Agent');
+
   // Binary Search State
   const [range, setRange] = useState({ min: 1, max: 5000000 });
   const [currentGuess, setCurrentGuess] = useState(2500000);
@@ -9,6 +12,22 @@ export default function CalculatorPage() {
   const [isCooldown, setIsCooldown] = useState(false);
 
   const attempts = history.length + 1;
+
+  // --- Fetch User Name on Load ---
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const res = await fetch('/api/user/me'); // We need this endpoint to return { name: "UserX" }
+        if (res.ok) {
+          const data = await res.json();
+          if (data.name) setUserName(data.name);
+        }
+      } catch (e) {
+        console.error("Failed to fetch user name");
+      }
+    }
+    fetchUser();
+  }, []);
 
   // Global Logout Function
   const handleLogout = async () => {
@@ -19,27 +38,20 @@ export default function CalculatorPage() {
   // Binary Search Move Logic
   const makeMove = (newMin: number, newMax: number) => {
     if (isCooldown || newMin > newMax) return;
-
-    // Save current state to history for the "Undo" button
     setHistory([...history, { ...range, guess: currentGuess }]);
-
     const nextGuess = Math.floor((newMin + newMax) / 2);
     setRange({ min: newMin, max: newMax });
     setCurrentGuess(nextGuess);
-
-    // Trigger Cooldown
     setIsCooldown(true);
-    setTimeout(() => setIsCooldown(false), 500); // 0.5s cooldown
+    setTimeout(() => setIsCooldown(false), 500);
   };
 
   const handleUndo = () => {
     if (history.length === 0 || isCooldown) return;
-
     const previousState = history[history.length - 1];
     setRange({ min: previousState.min, max: previousState.max });
     setCurrentGuess(previousState.guess);
     setHistory(history.slice(0, -1));
-
     setIsCooldown(true);
     setTimeout(() => setIsCooldown(false), 500);
   };
@@ -54,22 +66,26 @@ export default function CalculatorPage() {
     <main className="flex items-center justify-center min-h-screen p-4">
       <div className="glass-card p-8 w-full max-w-lg relative overflow-hidden">
         
-        {/* Header */}
+        {/* Updated Header with Welcome Message */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h2 className="text-xl font-bold text-white">Number Finder</h2>
-            <p className="text-xs text-blue-400 font-mono">Attempt #{attempts}</p>
+            <h2 className="text-xl font-bold text-white tracking-tight">
+              Welcome, <span className="text-blue-400">{userName}</span>
+            </h2>
+            <p className="text-[10px] uppercase text-gray-500 font-mono">Security Clearance: Active</p>
           </div>
-          <button 
-            onClick={handleLogout}
-            className="text-xs border border-red-500/50 text-red-400 px-3 py-1 rounded-lg hover:bg-red-500/10 transition-all"
-          >
-            Sign Out
-          </button>
+          <div className="text-right">
+             <p className="text-xs text-blue-400 font-mono mb-1">Attempt #{attempts}</p>
+             <button 
+                onClick={handleLogout}
+                className="text-[10px] uppercase font-bold border border-red-500/30 text-red-500 px-2 py-1 rounded hover:bg-red-500/10 transition-all"
+             >
+                Sign Out
+             </button>
+          </div>
         </div>
 
         {/* The Guess Display */}
-        
         <div className="text-center mb-10 bg-white/5 py-10 rounded-2xl border border-white/10 shadow-inner">
           <p className="text-gray-400 text-sm uppercase tracking-widest mb-2">Is your number...?</p>
           <p className="text-5xl font-bold text-white tabular-nums drop-shadow-md">
@@ -86,14 +102,14 @@ export default function CalculatorPage() {
           <button 
             disabled={isCooldown || currentGuess <= range.min}
             onClick={() => makeMove(range.min, currentGuess - 1)}
-            className={`btn-primary bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed`}
+            className="btn-primary bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed py-4 rounded-xl font-bold"
           >
             📉 Lower
           </button>
           <button 
             disabled={isCooldown || currentGuess >= range.max}
             onClick={() => makeMove(currentGuess + 1, range.max)}
-            className="btn-primary bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed py-4 rounded-xl font-bold"
           >
             📈 Higher
           </button>
@@ -104,13 +120,13 @@ export default function CalculatorPage() {
           <button 
             onClick={handleUndo}
             disabled={history.length === 0 || isCooldown}
-            className="text-sm text-gray-400 hover:text-white disabled:opacity-20 flex items-center gap-2"
+            className="text-sm text-gray-400 hover:text-white disabled:opacity-20 flex items-center gap-2 transition-colors"
           >
             ↩ Undo Move
           </button>
           <button 
             onClick={resetGame}
-            className="text-sm text-gray-400 hover:text-white"
+            className="text-sm text-gray-400 hover:text-white transition-colors"
           >
             Reset Range
           </button>
