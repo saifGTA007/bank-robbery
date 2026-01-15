@@ -10,18 +10,18 @@ export default function RegisterPage() {
   const [status, setStatus] = useState('');
   const router = useRouter();
 
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const t = searchParams.get('token');
+    if (t) setToken(t);
+  }, []);
 
-  
   const handleRegister = async () => {
     // 1. Sanitize the token input
     const safeToken = sanitizeInput(token, 12);
     setStatus('Verifying Token...');
 
-      useEffect(() => {
-        const searchParams = new URLSearchParams(window.location.search);
-        const t = searchParams.get('token');
-        if (t) setToken(t);
-      }, []);
+
     
 
     try {
