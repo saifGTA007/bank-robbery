@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { startRegistration } from '@simplewebauthn/browser';
 import { sanitizeInput } from '../utils/security';
@@ -10,10 +10,19 @@ export default function RegisterPage() {
   const [status, setStatus] = useState('');
   const router = useRouter();
 
+
+  
   const handleRegister = async () => {
     // 1. Sanitize the token input
     const safeToken = sanitizeInput(token, 12);
     setStatus('Verifying Token...');
+
+      useEffect(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        const t = searchParams.get('token');
+        if (t) setToken(t);
+      }, []);
+    
 
     try {
       const resp = await fetch(`/api/auth/register?token=${safeToken}`);
@@ -22,10 +31,10 @@ export default function RegisterPage() {
       const options = await resp.json();
       const attResp = await startRegistration(options);
 
-      const verifyResp = await fetch('/api/auth/register', {
+const verifyResp = await fetch(`/api/auth/register?token=${safeToken}`, { // Add the ?token= here
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
             token: safeToken, 
             attestationResponse: attResp, 
             challenge: options.challenge 
