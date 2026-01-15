@@ -26,26 +26,27 @@ useEffect(() => {
     checkSession();
   }, []);
 
-  const handleAdminLogin = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: pass }) 
-      });
+const handleAdminLogin = async () => {
+  setLoading(true);
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // USE 'pass' DIRECTLY - do not use sanitizeInput here
+      body: JSON.stringify({ password: pass }) 
+    });
 
-      if (res.ok) {
-        setIsAuthorized(true);
-      } else {
-        alert("Invalid Administrative Credentials");
-      }
-    } catch (e) {
-      alert("Connection Error");
-    } finally {
-      setLoading(false);
+    if (res.ok) {
+      setIsAuthorized(true);
+    } else {
+      alert("Invalid Password");
     }
-  };
+  } catch (e) {
+    alert("Login failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
 const handleGenerate = async () => {
   setLoading(true);
