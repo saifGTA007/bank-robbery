@@ -10,22 +10,42 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [recipientName, setRecipientName] = useState('');
 
-  const handleAdminLogin = () => {
-    if (pass === 'YOUR_SECRET_PASSWORD') { // Replace with your logic
-      // Set a cookie that expires in 1 hour
-      document.cookie = "admin_auth=true; path=/; max-age=3600; SameSite=Strict";
-      setIsAuthorized(true);
-    } else {
-      alert("Please enter a password.");
+
+useEffect(() => {
+    async function checkSession() {
+      try {
+        const res = await fetch('/api/admin/check-auth');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authorized) setIsAuthorized(true);
+        }
+      } catch (e) {
+        console.log("No active admin session");
+      }
+    }
+    checkSession();
+  }, []);
+
+  const handleAdminLogin = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pass }) 
+      });
+
+      if (res.ok) {
+        setIsAuthorized(true);
+      } else {
+        alert("Invalid Administrative Credentials");
+      }
+    } catch (e) {
+      alert("Connection Error");
+    } finally {
+      setLoading(false);
     }
   };
-
-  useEffect(() => {
-    // Check if the admin cookie exists
-    if (document.cookie.split('; ').find(row => row.startsWith('admin_auth=true'))) {
-      setIsAuthorized(true);
-    }
-  }, []);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -53,12 +73,14 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogout = () => {
-  // Clear the admin cookie
-  document.cookie = "admin_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-  setIsAuthorized(false);
-  window.location.href = '/';
-};
+const handleLogout = async () => {
+
+    await fetch('/api/admin/logout', { method: 'POST' });
+    setIsAuthorized(false);
+    setPass('');
+    setToken('');
+    window.location.href = '/';
+  };
 
   return (
     <main className="flex items-center justify-center min-h-screen p-4">
