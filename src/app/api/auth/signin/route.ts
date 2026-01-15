@@ -4,8 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
 
 // Use environment variables for these when going online!
-const RP_ID = '7038ca0269c6.ngrok-free.app'; 
-const ORIGIN = 'https://7038ca0269c6.ngrok-free.app'; 
+const RP_ID = process.env.RP_ID || 'localhost';
+const ORIGIN = process.env.ORIGIN || 'http://localhost:3000';
 
 export async function GET() {
     const options = await generateAuthenticationOptions({
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
         }
     } catch (error) {
         console.error("INTERNAL_LOG:", error); // Logs to your PC/Vercel console (Private)
-        
+
         // Send a generic message to the browser (Public)
         return NextResponse.json(
             { error: 'Internal Server Error' }, 

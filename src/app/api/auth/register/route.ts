@@ -4,8 +4,8 @@ import { generateRegistrationOptions, verifyRegistrationResponse } from '@simple
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const RP_ID = '7038ca0269c6.ngrok-free.app'; 
-const ORIGIN = 'https://7038ca0269c6.ngrok-free.app'; 
+const RP_ID = process.env.RP_ID || 'localhost';
+const ORIGIN = process.env.ORIGIN || 'http://localhost:3000';
 
 // Helper to handle BigInt for JSON responses
 const serialize = (data: any) => 
