@@ -1,27 +1,25 @@
-import { NextResponse } from 'next/server';
+// src/app/api/admin/login/route.ts
 import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
-  try {
-    const { password } = await req.json();
+  const { password } = await req.json();
 
-    // Check against the hidden environment variable
-    if (password === process.env.ADMIN_PASSWORD) {
-      const cookieStore = await cookies();
-      
-      // Set the "session" cookie securely from the server
-      cookieStore.set('admin_auth', 'true', {
-        httpOnly: true, // Prevents JavaScript from stealing the cookie
-        secure: true,   // Only works over HTTPS
-        sameSite: 'strict',
-        maxAge: 3600,   // 1 hour
-      });
+  if (password === process.env.ADMIN_PASSWORD) {
+    const cookieStore = await cookies();
+    
+    cookieStore.set('admin_auth', 'true', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Only true in production
+      sameSite: 'lax', // 'lax' is more compatible with different browsers than 'strict'
+      path: '/',
+      maxAge: 3600, 
+    });
 
-      return NextResponse.json({ success: true });
-    }
-
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  } catch (e) {
-    return NextResponse.json({ error: 'Server Error' }, { status: 500 });
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
+
+  return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
 }

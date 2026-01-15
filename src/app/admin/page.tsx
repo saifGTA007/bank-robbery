@@ -58,9 +58,9 @@ const handleGenerate = async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-          // adminPassword removed! The server uses the cookie now.
           name: sanitizeInput(recipientName) 
-       })
+       }),
+       credentials: 'same-origin',
     });
     
     if (res.ok) {
