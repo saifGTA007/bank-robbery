@@ -12,6 +12,7 @@ datasource db {
 model User {
   id           String  @id @default(cuid())
   username     String  @unique // This will be the token used to sign up
+  name         String?
   credentialID String  @unique // The fingerprint ID
   publicKey    String  // The fingerprint public key
   counter      BigInt  // Security counter for passkeys
@@ -25,4 +26,6 @@ model InviteToken {
   token     String  @unique
   isUsed    Boolean @default(false)
   createdAt DateTime @default(now())
+  recipient String?  // <--- Add this to store the name temporarily
+  expiresAt DateTime
 }

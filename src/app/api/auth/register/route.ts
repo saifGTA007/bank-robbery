@@ -50,6 +50,11 @@ export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { token, attestationResponse, challenge } = body;
+        
+        const { searchParams } = new URL(req.url);
+        const rawToken = searchParams.get('token');
+
+
 
         const verification = await verifyRegistrationResponse({
             response: attestationResponse,
@@ -59,27 +64,32 @@ export async function POST(req: Request) {
         });
 
         if (verification.verified && verification.registrationInfo) {
+                
             // This is the safest way to extract the data in the latest SimpleWebAuthn
-            const regInfo = verification.registrationInfo;
-            
-            if (verification.verified && verification.registrationInfo) {
                 const regInfo = verification.registrationInfo;
-
+                
+        
                 // NEW STRUCTURE: Everything is inside regInfo.credential
                 const id = regInfo.credential.id; 
                 const pubKey = regInfo.credential.publicKey;
                 const counter = regInfo.credential.counter;
 
-                // Log for debugging
-                console.log("Verified ID:", id);
+                if (!rawToken) {
+                  return NextResponse.json({ error: 'Token is required' }, { status: 400 });
+                }
+                
+                const invite = await prisma.inviteToken.findUnique({
+                  where: { token: rawToken }
+                });
+
 
                 await prisma.user.create({
                     data: {
                         username: token,
-                        // Use the new variables from the sub-object
+                        name: invite?.recipient || 'Unknown Agent',
                         credentialID: id,
                         publicKey: Buffer.from(pubKey).toString('base64'),
-                        counter: BigInt(counter),
+                        counter: BigInt(counter)
                     }
                 });
 
@@ -88,7 +98,7 @@ export async function POST(req: Request) {
                 });
 
                 return NextResponse.json(serialize({ success: true }));
-            }
+            
 
         }
 
