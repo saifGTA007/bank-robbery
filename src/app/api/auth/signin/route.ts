@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAuthenticationResponse, generateAuthenticationOptions } from '@simplewebauthn/server';
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { logEvent } from '@/app/utils/logger';
 
 // Use environment variables for these when going online!
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -66,6 +67,14 @@ export async function POST(req: Request) {
                 maxAge: 60 * 60 * 24,
                 path: '/',
             });
+
+            if (user) {
+              await logEvent(
+                'LOGIN', 
+                'User accessed the vault via biometric scan', 
+                user.name ?? undefined // This fixes the TS2345 error
+              );
+            }
 
             return NextResponse.json({ success: true });
         } else {

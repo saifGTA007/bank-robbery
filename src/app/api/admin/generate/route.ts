@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
+import { logEvent } from '@/app/utils/logger'; // <--- Add this import
 
 export async function POST(req: Request) {
   try {
@@ -22,6 +23,8 @@ export async function POST(req: Request) {
         expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24), // 24 hour expiry
       },
     });
+
+    await logEvent('TOKEN_GENERATED', `Issued new access token for ${name}`, 'Admin');
 
     return NextResponse.json({ token });
   } catch (error) {

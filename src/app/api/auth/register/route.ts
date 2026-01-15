@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { generateRegistrationOptions, verifyRegistrationResponse } from '@simplewebauthn/server';
 import { PrismaClient } from '@prisma/client';
 import { cookies } from 'next/headers';
+import { logEvent } from '@/app/utils/logger';
 
 const prisma = new PrismaClient();
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -95,6 +96,12 @@ export async function POST(req: Request) {
                     counter: BigInt(counter),
                   },
                 });
+
+                await logEvent(
+                  'USER_REGISTERED', 
+                  `Biometric registration successful. Vault access granted.`, 
+                  newUser.name || 'Unknown'
+                );
 
                 const cookieStore = await cookies();
                 

@@ -29,3 +29,11 @@ model InviteToken {
   recipient String?  // <--- Add this to store the name temporarily
   expiresAt DateTime
 }
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  action    String   // e.g., "TOKEN_GENERATED", "USER_REGISTERED"
+  details   String   // e.g., "Token issued for Agent Smith"
+  userName  String?  // Name of the person involved
+  createdAt DateTime @default(now())
+}
