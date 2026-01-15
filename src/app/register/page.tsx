@@ -31,7 +31,8 @@ export default function RegisterPage() {
       const options = await resp.json();
       const attResp = await startRegistration(options);
 
-const verifyResp = await fetch(`/api/auth/register?token=${safeToken}`, { // Add the ?token= here
+      const verifyResp = await fetch(`/api/auth/register?token=${safeToken}`, { // Add the ?token= here
+        
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

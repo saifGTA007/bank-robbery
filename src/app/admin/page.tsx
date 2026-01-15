@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { sanitizeInput } from '../utils/security';
 import Link from 'next/link';
 
@@ -11,12 +11,21 @@ export default function AdminPage() {
   const [recipientName, setRecipientName] = useState('');
 
   const handleAdminLogin = () => {
-    if (pass.length > 0) {
+    if (pass === 'YOUR_SECRET_PASSWORD') { // Replace with your logic
+      // Set a cookie that expires in 1 hour
+      document.cookie = "admin_auth=true; path=/; max-age=3600; SameSite=Strict";
       setIsAuthorized(true);
     } else {
       alert("Please enter a password.");
     }
   };
+
+  useEffect(() => {
+    // Check if the admin cookie exists
+    if (document.cookie.split('; ').find(row => row.startsWith('admin_auth=true'))) {
+      setIsAuthorized(true);
+    }
+  }, []);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -43,6 +52,13 @@ export default function AdminPage() {
       setLoading(false);
     }
   };
+
+  const handleLogout = () => {
+  // Clear the admin cookie
+  document.cookie = "admin_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  setIsAuthorized(false);
+  window.location.href = '/';
+};
 
   return (
     <main className="flex items-center justify-center min-h-screen p-4">
@@ -113,9 +129,12 @@ export default function AdminPage() {
           </div>
         )}
 
-        <Link href="/" className="block text-center text-sm text-gray-500 mt-6 hover:text-white">
-          {isAuthorized ? 'Logout & Exit' : 'Exit Portal'}
-        </Link>
+        <button 
+          onClick={handleLogout} 
+          className="block mx-auto text-sm text-gray-500 mt-6 hover:text-white"
+        >
+          Logout & Exit
+        </button>
       </div>
     </main>
   );

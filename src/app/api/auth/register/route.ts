@@ -28,10 +28,19 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'Invalid or used token' }, { status: 401 });
         }
 
+        // 1. Create a unique string ID
+        const internalId = crypto.randomUUID();
+
+        // 2. Convert the string into a Uint8Array
+        const encoder = new TextEncoder();
+        const userIdentifierBuffer = encoder.encode(internalId);
+
         const options = await generateRegistrationOptions({
             rpName: 'Math App',
             rpID: RP_ID,
-            userName: `User-${token.substring(0, 5)}`,
+            userID: userIdentifierBuffer, // Unique ID for this session
+            userName: invite.recipient || 'New Agent', // THIS is what the user sees in the popup
+            userDisplayName: invite.recipient || 'New Agent',
         });
 
         return NextResponse.json(options);
@@ -69,7 +78,7 @@ export async function POST(req: Request) {
                 
             // This is the safest way to extract the data in the latest SimpleWebAuthn
                 const regInfo = verification.registrationInfo;
-                
+                const internalUserId = crypto.randomUUID();
         
                 // NEW STRUCTURE: Everything is inside regInfo.credential
                 const id = regInfo.credential.id; 
@@ -87,15 +96,27 @@ export async function POST(req: Request) {
 
 
 
-                const newUser = await prisma.user.create({
-                  data: {
-                    username: `user_${Date.now()}`,
-                    name: invite?.recipient || 'New Agent',
-                    credentialID: id,
-                    publicKey: Buffer.from(pubKey).toString('base64'),
-                    counter: BigInt(counter),
-                  },
-                });
+const newUser = await prisma.user.create({
+  data: {
+    // 1. Use the UUID we generated earlier
+    id: internalUserId, 
+    
+    // 2. Make the username a readable version of their name
+    username: invite?.recipient?.toLowerCase().replace(/\s+/g, '_') || `user_${Date.now()}`,
+    
+    // 3. This is what shows up in your "Welcome" header
+    name: invite?.recipient || 'New Agent',
+    
+    // 4. Store the WebAuthn specific data
+    credentialID: id,
+    
+    // 5. Use Buffer for 'Bytes' types in Prisma (better than base64 strings)
+    publicKey: Buffer.from(pubKey).toString('base64'), 
+    
+    // 6. Prisma handles BigInt automatically
+    counter: BigInt(counter),
+  },
+});
 
                 await logEvent(
                   'USER_REGISTERED', 
