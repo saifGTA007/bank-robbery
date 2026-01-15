@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 
 interface Log {
@@ -11,59 +11,101 @@ interface Log {
 }
 
 export default function LogsPage() {
-  const [logs, setLogs] = useState<Log[]>([]); // Default is empty array
+  const [logs, setLogs] = useState<Log[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterAction, setFilterAction] = useState('ALL');
 
   useEffect(() => {
     async function fetchLogs() {
       try {
         const res = await fetch('/api/admin/logs');
-        
         if (res.status === 401) {
-          setError("Session expired. Please log in again.");
+          setError("Session expired.");
           return;
         }
-
         const data = await res.json();
-        
-        // --- CRITICAL FIX: Only map if data is an Array ---
-        if (Array.isArray(data)) {
-          setLogs(data);
-        } else {
-          setLogs([]);
-          setError(data.error || "Failed to load logs");
-        }
+        if (Array.isArray(data)) setLogs(data);
       } catch (e) {
-        setError("Network error occurred.");
+        setError("Network error.");
       }
     }
-    
     fetchLogs();
-  }, []); // [] ensure it only runs once (fixes the 429 loop)
+  }, []);
+
+  // Filter Logic
+  const filteredLogs = useMemo(() => {
+    return logs.filter(log => {
+      const matchesSearch = 
+        log.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.userName?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesAction = filterAction === 'ALL' || log.action === filterAction;
+      return matchesSearch && matchesAction;
+    });
+  }, [logs, searchTerm, filterAction]);
+
+  // Get unique actions for the filter dropdown
+  const uniqueActions = ['ALL', ...new Set(logs.map(l => l.action))];
 
   return (
-    <main className="p-8 min-h-screen bg-black text-gray-300 font-mono">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
-          <h1 className="text-xl font-bold text-red-500 uppercase tracking-tighter">System Audit Logs</h1>
-          <Link href="/admin" className="text-xs hover:text-white border border-gray-700 px-3 py-1 rounded">Back to Portal</Link>
-        </div>
-
-        {error ? (
-          <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded">
-            ⚠️ {error}
+    <main className="min-h-screen bg-[#0a0a0a] text-gray-300 pb-20">
+      {/* Sticky Mobile Header */}
+      <header className="sticky top-0 z-10 bg-black/80 backdrop-blur-md border-b border-gray-800 p-4">
+        <div className="max-w-4xl mx-auto space-y-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-lg font-bold text-red-500 tracking-tighter uppercase">Audit Logs</h1>
+            <Link href="/admin" className="text-xs bg-gray-900 px-3 py-1 rounded border border-gray-700">Back</Link>
           </div>
+
+          {/* Search and Filter Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input 
+              type="text"
+              placeholder="Search by agent or detail..."
+              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <select 
+              className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm outline-none"
+              value={filterAction}
+              onChange={(e) => setFilterAction(e.target.value)}
+            >
+              {uniqueActions.map(action => (
+                <option key={action} value={action}>{action}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-4xl mx-auto p-4 mt-4">
+        {error ? (
+          <div className="p-4 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20 text-center">{error}</div>
         ) : (
-          <div className="space-y-2">
-            {logs.length === 0 && <p className="text-gray-600 italic">No logs found...</p>}
-            {logs.map((log) => (
-              <div key={log.id} className="text-[10px] md:text-xs flex gap-4 p-2 hover:bg-white/5 rounded transition-colors border-l border-transparent hover:border-red-500/50">
-                <span className="text-gray-600">[{new Date(log.createdAt).toLocaleString()}]</span>
-                <span className="text-blue-400 w-32 font-bold shrink-0">{log.action}</span>
-                <span className="text-white flex-1">{log.details}</span>
-                <span className="text-gray-500 italic shrink-0">{log.userName}</span>
+          <div className="space-y-3">
+            {filteredLogs.map((log) => (
+              <div key={log.id} className="bg-gray-900/40 border border-gray-800 rounded-xl p-4 hover:border-gray-600 transition-all">
+                <div className="flex justify-between items-start mb-2">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                    log.action.includes('TOKEN') ? 'bg-blue-500/20 text-blue-400' : 'bg-green-500/20 text-green-400'
+                  }`}>
+                    {log.action}
+                  </span>
+                  <span className="text-[10px] text-gray-500">
+                    {new Date(log.createdAt).toLocaleDateString()} {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <p className="text-sm text-white mb-1 leading-relaxed">{log.details}</p>
+                <div className="text-[11px] text-gray-400 italic">
+                  Agent: <span className="text-gray-200">@{log.userName || 'System'}</span>
+                </div>
               </div>
             ))}
+            
+            {filteredLogs.length === 0 && (
+              <div className="text-center py-20 text-gray-600 italic">No matching records found.</div>
+            )}
           </div>
         )}
       </div>
