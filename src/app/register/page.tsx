@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const [token, setToken] = useState('');
   const [status, setStatus] = useState('');
   const router = useRouter();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -16,52 +17,51 @@ export default function RegisterPage() {
     if (t) setToken(t);
   }, []);
 
-  const handleRegister = async () => {
-    // 1. Sanitize the token input
-    const safeToken = sanitizeInput(token, 12);
-    setStatus('Verifying Token...');
-
-
-    
+// Updated handleRegister logic
+const handleRegister = async () => {
+    if (!token) return setStatus("Please enter a token");
+    setIsProcessing(true);
+    setStatus('Contacting Server...');
 
     try {
-      const resp = await fetch(`/api/auth/register?token=${safeToken}`);
-      if (!resp.ok) throw new Error('Token is invalid or already used');
-      
-      const options = await resp.json();
-      const attResp = await startRegistration(options);
-
-      const verifyResp = await fetch(`/api/auth/register?token=${safeToken}`, { // Add the ?token= here
+        // Step 1: Get Registration Options
+        const resp = await fetch(`/api/auth/register?token=${token}`);
         
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            token: safeToken, 
-            attestationResponse: attResp, 
-            challenge: options.challenge 
-        }),
-      });
+        if (resp.status === 429) throw new Error("Too many attempts. Wait 1 minute.");
+        if (!resp.ok) throw new Error('Token is invalid or already used');
+        
+        const options = await resp.json();
+        setStatus('Awaiting Biometric Scan...');
+        
+        // Step 2: Browser Biometric Prompt
+        const attResp = await startRegistration(options);
 
-      if (verifyResp.ok) {
-        setStatus('Success! Account secured.');
-        setTimeout(() => router.push('/'), 2000);
-      } else {
-        const err = await verifyResp.json();
-        throw new Error(err.error);
-      }
+        // Step 3: Verify and Save
+        setStatus('Finalizing Security...');
+        const verifyResp = await fetch(`/api/auth/register`, { // No need for ?token here if it's in the body
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: token, 
+                attestationResponse: attResp, 
+                challenge: options.challenge 
+            }),
+        });
+
+        if (verifyResp.ok) {
+            setStatus('Success! Account secured.');
+            setTimeout(() => router.push('/'), 1500);
+        } else {
+            const err = await verifyResp.json();
+            throw new Error(err.error || 'Verification failed');
+        }
     } catch (e: any) {
-    // If the user cancelled, just clear the status or say "Cancelled"
-    if (e.name === 'NotAllowedError') {
-        setStatus('Login cancelled.');
-    } else if (e.name === 'SecurityError') {
-        setStatus('Security block: Use HTTPS or check domain.');
-    } else {
-        // For everything else, show a generic "safe" error
-        setStatus('Authentication failed. Please try again.');
-        console.error("Technical details hidden from user:", e);
+        console.error(e);
+        setStatus(e.message || 'Error occurred');
+    } finally {
+        setIsProcessing(false);
     }
-}
-  };
+};
 
   return (
     <main className="flex items-center justify-center min-h-screen p-4">
@@ -77,8 +77,8 @@ export default function RegisterPage() {
           onChange={(e) => setToken(e.target.value)}
         />
         
-        <button onClick={handleRegister} className="btn-primary w-full mb-4">
-          Scan Biometrics
+        <button onClick={handleRegister} disabled={isProcessing} className="btn-primary w-full mb-4 disabled:opacity-50">
+          {isProcessing ? 'Communicating with Secure Enclave...' : 'Scan Biometrics'}
         </button>
         
         <Link href="/" className="block text-center text-sm text-gray-500 hover:text-white transition-colors">
