@@ -4,12 +4,17 @@ import type { NextRequest } from 'next/server';
 // In-memory storage for rate limiting
 const ipMap = new Map<string, { count: number; lastReset: number }>();
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. SAFE IP EXTRACTION
   const forwarded = request.headers.get('x-forwarded-for');
-  const ip = forwarded ? forwarded.split(',')[0] : (request.ip ?? '127.0.0.1'); 
+  const realIp = request.headers.get('x-real-ip');
+  
+  // Priority: 1. Forwarded Header, 2. Real IP Header, 3. Fallback
+  const ip = forwarded 
+    ? forwarded.split(',')[0] 
+    : (realIp ?? '127.0.0.1');
   const now = Date.now();
 
   // 2. DYNAMIC RATE LIMITING
