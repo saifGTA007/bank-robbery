@@ -17,7 +17,7 @@ export default function RegisterPage() {
 
   const [callCounter, setCallCounter] = useState(0);
 
-  const handleRegister = async () => {
+const handleRegister = async () => {
     const currentCall = callCounter + 1;
     setCallCounter(currentCall);
     
@@ -31,18 +31,18 @@ export default function RegisterPage() {
             cache: 'no-store'
         });
 
-        // 1. Parse the JSON once
         const data = await resp.json();
 
-        // 2. Check for errors (Ngrok 429 or Invalid Token)
         if (resp.status === 429) throw new Error('Too many attempts (429)');
         if (!resp.ok || data.valid === false) {
             throw new Error(data.error || 'This token is invalid.');
         }
 
-        // 3. 'data' now contains your registration options
         setStatus('Scan your biometric key...');
+        
+        // --- WEBAUTHN START ---
         const attResp = await startRegistration(data);
+        // --- WEBAUTHN END ---
         
         setStatus('Securing Account...');
         const verifyResp = await fetch(`/api/auth/register`, { 
@@ -64,11 +64,19 @@ export default function RegisterPage() {
             throw new Error(err.error || 'Verification failed');
         }
     } catch (e: any) {
-        setStatus(e.message);
+        // --- FRIENDLY ERROR HANDLING ---
+        if (e.name === 'NotAllowedError') {
+            setStatus('SCAN CANCELLED');
+        } else if (e.name === 'InvalidStateError') {
+            setStatus('DEVICE ALREADY REGISTERED: This key is already linked !');
+        } else {
+            setStatus(e.message || 'An unexpected security error occurred.');
+        }
+        // ------------------------------
     } finally {
         setIsProcessing(false);
     }
-  };
+};
 
   return (
     <main className="flex items-center justify-center min-h-screen bg-black p-4 font-mono">
@@ -99,7 +107,7 @@ export default function RegisterPage() {
           disabled={isProcessing}
           className="w-full mt-4 py-2 text-gray-600 text-[10px] uppercase tracking-widest hover:text-gray-400 transition-colors"
         >
-          ← Return to Entry
+          Return
         </button>
 
         {status && (
