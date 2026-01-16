@@ -1,36 +1,31 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// In-memory storage for rate limiting
 const ipMap = new Map<string, { count: number; lastReset: number }>();
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. SAFE IP EXTRACTION
   const forwarded = request.headers.get('x-forwarded-for');
   const realIp = request.headers.get('x-real-ip');
-  
-  // Priority: 1. Forwarded Header, 2. Real IP Header, 3. Fallback
-  const ip = forwarded 
-    ? forwarded.split(',')[0] 
-    : (realIp ?? '127.0.0.1');
+  const ip = forwarded ? forwarded.split(',')[0] : (realIp ?? '127.0.0.1');
   const now = Date.now();
 
-  // 2. DYNAMIC RATE LIMITING
   if (pathname.startsWith('/api')) {
-    const windowMs = 60 * 1000; // 1 minute
+    const windowMs = 60 * 1000;
     
-    // Define "Sensitive" routes that need a strict 5-request limit
-    const isSensitive = 
-        pathname.startsWith('/api/admin') || 
-        pathname.startsWith('/api/auth/register');
+    // Check if it's an admin or auth route
+    const isAdminRoute = pathname.startsWith('/api/admin');
+    const isRegisterRoute = pathname.startsWith('/api/auth/register');
 
-    const maxRequests = isSensitive ? 5 : 30;
+    // FIX: Increase Admin limit to 50 so you don't get blocked while working.
+    // Keep Registration at 5 to prevent brute forcing tokens.
+    let maxRequests = 30;
+    if (isAdminRoute) maxRequests = 50; 
+    if (isRegisterRoute) maxRequests = 5;
 
     const userData = ipMap.get(ip) || { count: 0, lastReset: now };
 
-    // Reset logic
     if (now - userData.lastReset > windowMs) {
       userData.count = 1;
       userData.lastReset = now;
@@ -41,17 +36,18 @@ export function proxy(request: NextRequest) {
     ipMap.set(ip, userData);
 
     if (userData.count > maxRequests) {
+      console.warn(`[RATE LIMIT] ${ip} blocked on ${pathname}`);
       return new NextResponse(
         JSON.stringify({ 
           error: 'Rate limit exceeded. Try again in a minute.',
-          type: isSensitive ? 'SECURITY_BLOCK' : 'TRAFFIC_BLOCK'
+          type: isAdminRoute ? 'ADMIN_LIMIT' : 'SECURITY_BLOCK'
         }), 
         { status: 429, headers: { 'Content-Type': 'application/json' } }
       );
     }
   }
 
-  // 3. PAGE PROTECTION (Direct Access Bypass Protection)
+  // 3. PAGE PROTECTION
   if (pathname.startsWith('/calculator')) {
     const session = request.cookies.get('auth_session');
     if (!session) {
@@ -63,7 +59,3 @@ export function proxy(request: NextRequest) {
 
   return NextResponse.next();
 }
-
-export const config = {
-  matcher: ['/api/:path*', '/calculator/:path*'],
-};

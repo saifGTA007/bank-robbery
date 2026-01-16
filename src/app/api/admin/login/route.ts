@@ -1,4 +1,4 @@
-// src/app/api/admin/login/route.ts
+import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function POST(req: Request) {
@@ -7,19 +7,17 @@ export async function POST(req: Request) {
   if (password === process.env.ADMIN_PASSWORD) {
     const cookieStore = await cookies();
     
+    // This is the "Passport" the browser will show to get the logs
     cookieStore.set('admin_auth', 'true', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Only true in production
-      sameSite: 'lax', // 'lax' is more compatible with different browsers than 'strict'
+      httpOnly: true, // Prevents hackers from stealing it via JS
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24, // 24 hours
       path: '/',
-      maxAge: 3600, 
     });
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json({ success: true });
   }
 
-  return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 }

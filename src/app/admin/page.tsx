@@ -63,18 +63,21 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleGenerate = async () => {
-    const res = await fetch('/api/admin/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: sanitizeInput(recipientName) })
-    });
-    const data = await res.json();
-    if (data.token) {
-      setGeneratedToken(data.token);
-      fetchLogs(); 
-    }
-  };
+const handleGenerate = async () => {
+  const res = await fetch('/api/admin/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: sanitizeInput(recipientName) }),
+    // ADD THIS LINE
+    credentials: 'same-origin' 
+  });
+  
+  const data = await res.json();
+  if (data.token) {
+    setGeneratedToken(data.token);
+    fetchLogs(); 
+  }
+};
 
   const handleClearLogs = async () => {
     if (!confirm("Are you sure? This will wipe all system logs permanently.")) return;
@@ -141,7 +144,7 @@ export default function AdminDashboard() {
       <main className="min-h-screen bg-black flex items-center justify-center font-mono text-white">
         <div className="flex flex-col items-center gap-3">
           <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-[10px] text-gray-500 uppercase tracking-widest italic">Loading Logs</span>
+          <span className="text-[10px] text-gray-500 uppercase tracking-widest italic">Loading</span>
         </div>
       </main>
     );
@@ -184,18 +187,35 @@ export default function AdminDashboard() {
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-gray-900 p-8 rounded-2xl w-full max-w-sm border border-blue-500/20 shadow-2xl">
             {!generatedToken ? (
-              <>
-                <h3 className="text-blue-500 text-xs font-bold mb-4 uppercase tracking-widest">Identity Authorization</h3>
-                <input 
-                  type="text" 
-                  placeholder="Recipient Name" 
-                  className="w-full bg-black p-4 rounded-xl mb-4 border border-gray-800 focus:border-blue-500 outline-none transition-all"
-                  value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
-                />
-                <button onClick={handleGenerate} className="w-full bg-blue-600 py-3 rounded-xl font-bold">CREATE CLEARANCE</button>
-                <button onClick={() => setShowGenBox(false)} className="w-full mt-4 text-gray-500 text-xs hover:text-white transition-colors">CANCEL</button>
-              </>
+              <div className="flex flex-col w-full">
+                <h3 className="text-blue-500 text-[10px] font-bold mb-6 uppercase tracking-[0.2em] text-center">
+                  Identity Authorization
+                </h3>
+
+                <div className="space-y-4">
+                  <input 
+                    type="text" 
+                    placeholder="Recipient Name" 
+                    className="w-full bg-black p-4 rounded-xl border border-gray-800 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all text-white placeholder:text-gray-700"
+                    value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                  />
+
+                  <button 
+                    onClick={handleGenerate} 
+                    className="w-full bg-blue-600 py-4 rounded-xl font-bold uppercase tracking-widest text-sm hover:bg-blue-500 active:scale-[0.98] transition-all shadow-lg shadow-blue-900/20"
+                  >
+                    Create Clearance
+                  </button>
+                </div>
+
+                <button 
+                  onClick={() => setShowGenBox(false)} 
+                  className="w-full mt-6 py-2 text-gray-600 text-[10px] font-bold uppercase tracking-[0.3em] hover:text-red-500 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             ) : (
               <div className="text-center">
                 <p className="text-gray-500 text-[10px] mb-2 uppercase tracking-widest">Clearance Token Generated</p>
