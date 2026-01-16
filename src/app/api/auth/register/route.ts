@@ -60,12 +60,12 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
+        // Get EVERYTHING from the body
         const { token, attestationResponse, challenge } = body;
-        
-        const { searchParams } = new URL(req.url);
-        const rawToken = searchParams.get('token');
 
-
+        if (!token) {
+            return NextResponse.json({ error: 'Token is required' }, { status: 400 });
+        }
 
         const verification = await verifyRegistrationResponse({
             response: attestationResponse,
@@ -75,82 +75,54 @@ export async function POST(req: Request) {
         });
 
         if (verification.verified && verification.registrationInfo) {
-                
-            // This is the safest way to extract the data in the latest SimpleWebAuthn
-                const regInfo = verification.registrationInfo;
-                const internalUserId = crypto.randomUUID();
-        
-                // NEW STRUCTURE: Everything is inside regInfo.credential
-                const id = regInfo.credential.id; 
-                const pubKey = regInfo.credential.publicKey;
-                const counter = regInfo.credential.counter;
+            const regInfo = verification.registrationInfo;
+            
+            // Look up the invite using the token from the BODY
+            const invite = await prisma.inviteToken.findUnique({
+                where: { token: token }
+            });
 
-                if (!rawToken) {
-                  return NextResponse.json({ error: 'Token is required' }, { status: 400 });
-                }
-                
-                const invite = await prisma.inviteToken.findUnique({
-                  where: { token: rawToken }
-                });
+            if (!invite) {
+                return NextResponse.json({ error: 'Invite not found' }, { status: 404 });
+            }
 
-
-
-
-const newUser = await prisma.user.create({
-  data: {
-    // 1. Use the UUID we generated earlier
-    id: internalUserId, 
-    
-    // 2. Make the username a readable version of their name
-    username: invite?.recipient?.toLowerCase().replace(/\s+/g, '_') || `user_${Date.now()}`,
-    
-    // 3. This is what shows up in your "Welcome" header
-    name: invite?.recipient || 'New Agent',
-    
-    // 4. Store the WebAuthn specific data
-    credentialID: id,
-    
-    // 5. Use Buffer for 'Bytes' types in Prisma (better than base64 strings)
-    publicKey: Buffer.from(pubKey).toString('base64'), 
-    
-    // 6. Prisma handles BigInt automatically
-    counter: BigInt(counter),
-  },
-});
-
-                await logEvent(
-                  'USER_REGISTERED', 
-                  `Biometric registration successful. Vault access granted.`, 
-                  newUser.name || 'Unknown'
-                );
-
-                const cookieStore = await cookies();
-                
-                cookieStore.set('userId', newUser.id, { 
-                    httpOnly: true, 
-                    secure: true, 
-                    sameSite: 'strict',
-                    maxAge: 60 * 60 * 24 * 7 // 1 week
-                });
-
-                await prisma.inviteToken.delete({
-                    where: { token: token } 
-                });
-
-                return NextResponse.json(serialize({ success: true }));
+            const internalUserId = crypto.randomUUID();
+            const newUser = await prisma.user.create({
+                data: {
+                    id: internalUserId,
+                    username: invite.recipient?.toLowerCase().replace(/\s+/g, '_') || `user_${Date.now()}`,
+                    name: invite.recipient || 'New Agent',
+                    credentialID: regInfo.credential.id,
+                    publicKey: Buffer.from(regInfo.credential.publicKey).toString('base64'),
+                    counter: BigInt(regInfo.credential.counter),
+                },
+            });
+            
+            if(newUser.name) {
+                await logEvent('USER_REGISTERED', `Vault access granted.`, newUser.name);
+            }
             
 
+            // Set Cookie
+            const cookieStore = await cookies();
+            cookieStore.set('userId', newUser.id, { 
+                httpOnly: true, 
+                secure: true, 
+                sameSite: 'strict',
+                path: '/', // Ensure path is root
+                maxAge: 60 * 60 * 24 * 7 
+            });
+
+            // Delete token LAST
+            await prisma.inviteToken.delete({ where: { token: token } });
+
+            return NextResponse.json(serialize({ success: true }));
         }
 
         return NextResponse.json({ error: 'Verification failed' }, { status: 400 });
 
     } catch (error) {
-        console.error("INTERNAL_LOG:", error); // Logs to your PC/Vercel console (Private)
-
-        // Send a generic message to the browser (Public)
-        return NextResponse.json(
-            { error: 'Internal Server Error' }, 
-            { status: 500 }
-        );
+        console.error("POST_ERROR:", error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

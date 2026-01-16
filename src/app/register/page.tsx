@@ -18,7 +18,8 @@ export default function RegisterPage() {
   }, []);
 
   const handleRegister = async () => {
-    if (isProcessing) return; // Immediate shield against double-clicks
+    
+    if (isProcessing || status === 'Success! Account secured.') return;
     
     const safeToken = sanitizeInput(token, 12);
     if (!safeToken) return setStatus('Please enter a valid token.');
