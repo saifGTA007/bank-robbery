@@ -45,7 +45,7 @@ export default function Home() {
   return (
     <main className="flex items-center justify-center min-h-screen p-4">
       <div className="glass-card p-8 w-full max-w-md text-center">
-        <h1 className="text-3xl font-bold mb-8">MTA Bank Robbery cracker v1.0</h1>
+        <h1 className="text-3xl font-bold mb-8">MTA Bank Robbery cracker</h1>
         <button onClick={handleLogin} className="btn-primary w-full text-lg mb-6">
           Authenticate
         </button>
@@ -59,6 +59,7 @@ export default function Home() {
       <div  className="footer-glass-card mb-6 text-lg  w-full max-w-md text-center">         
           <h3>made by</h3>
           <h3>saifGTA</h3>
+          <p className='text-sm text-gray-400'>v1.0</p>
       </div>
     </main>
   );

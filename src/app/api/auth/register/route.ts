@@ -35,10 +35,14 @@ export async function GET(req: Request) {
 
         const invite = await prisma.inviteToken.findUnique({ where: { token } });
         
-        if (!invite) {
-            console.error(`Result: Token ${token} not found in DB`);
-            return NextResponse.json({ error: 'Invalid token' }, { status: 404 });
-        }
+    if (!invite) {
+        // Return 200 (Success) but with a body that says valid: false
+        // This stops the browser console from showing a Red 404 Error
+        return NextResponse.json({ 
+            valid: false, 
+            error: 'Token not found' 
+        }, { status: 200 }); 
+    }
 
         console.log(`Result: Token valid for recipient: ${invite.recipient}`);
 

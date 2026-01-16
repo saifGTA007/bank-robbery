@@ -22,8 +22,9 @@ export default function AdminDashboard() {
   const [recipientName, setRecipientName] = useState('');
   const [generatedToken, setGeneratedToken] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false); // New state for logs
 
-  // MANUAL LOG FETCH - Only happens when you click or login
+  // MANUAL LOG FETCH
   const fetchLogs = async () => {
     try {
       const res = await fetch('/api/admin/logs', { cache: 'no-store' });
@@ -47,7 +48,9 @@ export default function AdminDashboard() {
 
       if (res.ok) {
         setIsAuthorized(true);
-        fetchLogs(); // Fetch logs ONCE upon successful login
+        setDataLoading(true); // Start small circle
+        await fetchLogs();    // Wait for data
+        setDataLoading(false); // Stop small circle
       } else {
         alert("Access Denied");
       }
@@ -65,7 +68,7 @@ export default function AdminDashboard() {
     const data = await res.json();
     if (data.token) {
       setGeneratedToken(data.token);
-      fetchLogs(); // Update the list after generating
+      fetchLogs(); 
     }
   };
 
@@ -75,6 +78,7 @@ export default function AdminDashboard() {
     router.push('/');
   };
 
+  // 1. LOGIN VIEW
   if (!isAuthorized) {
     return (
       <main className="min-h-screen bg-black flex items-center justify-center p-6 font-mono text-white">
@@ -83,7 +87,7 @@ export default function AdminDashboard() {
           <input 
             type="password" 
             className="w-full bg-gray-900 border border-gray-800 p-3 rounded mb-4"
-            placeholder="Key"
+            placeholder="Enter Password"
             value={pass}
             onChange={(e) => setPass(e.target.value)}
           />
@@ -95,11 +99,24 @@ export default function AdminDashboard() {
     );
   }
 
+  // 2. SMALL LOADING CIRCLE VIEW
+  if (dataLoading) {
+    return (
+      <main className="min-h-screen bg-black flex items-center justify-center font-mono text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-[10px] text-gray-500 uppercase tracking-widest">Loading Logs</span>
+        </div>
+      </main>
+    );
+  }
+
+  // 3. DASHBOARD VIEW
   return (
     <main className="min-h-screen bg-black text-white font-mono p-4">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8 border-b border-gray-800 pb-4">
-          <h1 className="text-red-500 font-bold">VAULT_DASHBOARD</h1>
+          <h1 className="text-red-500 font-bold">DASHBOARD</h1>
           <div className="flex gap-2">
             <button onClick={handleLogout} className="text-xs text-gray-500">LOGOUT</button>
           </div>
@@ -110,7 +127,7 @@ export default function AdminDashboard() {
               onClick={() => setShowGenBox(true)} 
               className="bg-blue-600 flex-1 py-4 rounded-xl font-bold"
             >
-              + GENERATE INVITE
+              + GENERATE TOKEN
             </button>
             <button 
               onClick={fetchLogs} 
