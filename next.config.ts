@@ -14,6 +14,9 @@ const cspHeader = `
 `;
 
 const nextConfig = {
+  devIndicators: {
+    buildActivity: false,
+  },
   async headers() {
     return [
       {

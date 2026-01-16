@@ -6,8 +6,8 @@ import { cookies } from 'next/headers';
 import { logEvent } from '@/app/utils/logger';
 
 const prisma = new PrismaClient();
-const RP_ID = process.env.RP_ID || 'localhost';
-const ORIGIN = process.env.ORIGIN || 'http://localhost:3000';
+const RP_ID = process.env.RP_ID || 'localhost ' || '66125277e47a.ngrok-free.app';
+const ORIGIN = process.env.ORIGIN || 'http://localhost:3000' || 'https://66125277e47a.ngrok-free.app/';
 
 // Helper to handle BigInt for JSON responses
 const serialize = (data: any) => 
@@ -15,46 +15,51 @@ const serialize = (data: any) =>
         typeof value === 'bigint' ? value.toString() : value
     ));
 
+let serverHitCount = 0;
+
 export async function GET(req: Request) {
-    try{
-        
-        const { searchParams } = new URL(req.url);
-        const token = searchParams.get('token');
+    serverHitCount++;
+    const { searchParams } = new URL(req.url);
+    const token = searchParams.get('token');
+    const debugId = searchParams.get('debug');
 
-        if (!token) return NextResponse.json({ error: 'Token required' }, { status: 400 });
+    console.log(`\n--- [SERVER GET] Hit #${serverHitCount} ---`);
+    console.log(`Debug ID from Client: ${debugId}`);
+    console.log(`Token Received: ${token}`);
 
-        const invite = await prisma.inviteToken.findUnique({ where: { token } });
-        if (!invite || invite.isUsed) {
-            return NextResponse.json({ error: 'Invalid or used token' }, { status: 401 });
+    try {
+        if (!token) {
+            console.error("Result: Missing Token");
+            return NextResponse.json({ error: 'Token required' }, { status: 400 });
         }
 
-        // 1. Create a unique string ID
-        const internalId = crypto.randomUUID();
+        const invite = await prisma.inviteToken.findUnique({ where: { token } });
+        
+        if (!invite) {
+            console.error(`Result: Token ${token} not found in DB`);
+            return NextResponse.json({ error: 'Invalid token' }, { status: 404 });
+        }
 
-        // 2. Convert the string into a Uint8Array
-        const encoder = new TextEncoder();
-        const userIdentifierBuffer = encoder.encode(internalId);
+        console.log(`Result: Token valid for recipient: ${invite.recipient}`);
 
         const options = await generateRegistrationOptions({
-            rpName: 'Math App',
+            rpName: 'Security Vault',
             rpID: RP_ID,
-            userID: userIdentifierBuffer, // Unique ID for this session
-            userName: invite.recipient || 'New Agent', // THIS is what the user sees in the popup
+            userID: Buffer.from(invite.id), 
+            userName: invite.recipient || 'new_agent', 
             userDisplayName: invite.recipient || 'New Agent',
         });
 
-        return NextResponse.json(options);
+        console.log(`Result: Success. Sending options with challenge: ${options.challenge.slice(0, 10)}...`);
+
+        return NextResponse.json(options, {
+            headers: { 'Cache-Control': 'no-store' }
+        });
 
     } catch (error) {
-        console.error("INTERNAL_LOG:", error); // Logs to your PC/Vercel console (Private)
-
-        // Send a generic message to the browser (Public)
-        return NextResponse.json(
-            { error: 'Internal Server Error' }, 
-            { status: 500 }
-        );
+        console.error("Result: Internal Error", error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
-    
 }
 
 export async function POST(req: Request) {
@@ -97,7 +102,7 @@ export async function POST(req: Request) {
                     counter: BigInt(regInfo.credential.counter),
                 },
             });
-            
+
             if(newUser.name) {
                 await logEvent('USER_REGISTERED', `Vault access granted.`, newUser.name);
             }

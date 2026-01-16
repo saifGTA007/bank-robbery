@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const [status, setStatus] = useState('');
   const [isProcessing, setIsProcessing] = useState(false); // CRITICAL: Stop the spam
   const router = useRouter();
+  let renderCount = 0;
 
   // ONLY grab the token from the URL once, do NOT fetch anything automatically
   useEffect(() => {
@@ -17,65 +18,73 @@ export default function RegisterPage() {
     if (t) setToken(t);
   }, []);
 
-  const handleRegister = async () => {
-    
-    if (isProcessing || status === 'Success! Account secured.') return;
-    
-    const safeToken = sanitizeInput(token, 12);
-    if (!safeToken) return setStatus('Please enter a valid token.');
+  renderCount++;
+  console.log(`[CLIENT] Render #${renderCount} - Token: ${token}`);
 
+  const [callCounter, setCallCounter] = useState(0);
+
+const handleRegister = async () => {
+    const currentCall = callCounter + 1;
+    setCallCounter(currentCall);
+
+    console.log(`[CLIENT] handleRegister Execution #${currentCall} started`);
+    
+    if (isProcessing) {
+        console.warn(`[CLIENT] Blocked: isProcessing is true`);
+        return;
+    }
+    
     setIsProcessing(true);
     setStatus('Verifying Token...');
 
     try {
-      // Step 1: Request Registration Options
-      const resp = await fetch(`/api/auth/register?token=${safeToken}`, {
-        cache: 'no-store' // Prevent browser caching of 429s
-      });
+        console.log(`[CLIENT] #${currentCall} Fetching GET options for token: ${token}`);
+        
+        const resp = await fetch(`/api/auth/register?token=${token}&debug=${currentCall}`, {
+            cache: 'no-store'
+        });
 
-      if (resp.status === 429) {
-        throw new Error('Too many attempts. Please wait 60 seconds.');
-      }
-      if (!resp.ok) {
-        throw new Error('Token is invalid or has already been consumed.');
-      }
-      
-      const options = await resp.json();
-      setStatus('Scan your biometric key...');
+        console.log(`[CLIENT] #${currentCall} GET Response status:`, resp.status);
 
-      // Step 2: Trigger WebAuthn (Fingerprint/FaceID)
-      const attResp = await startRegistration(options);
+        if (resp.status === 429) throw new Error('Too many attempts (429)');
+        if (!resp.ok) throw new Error(`Server error: ${resp.status}`);
+        
+        const options = await resp.json();
+        console.log(`[CLIENT] #${currentCall} Received Options (Challenge):`, options.challenge);
 
-      // Step 3: Send result to server
-      setStatus('Securing Account...');
-      const verifyResp = await fetch(`/api/auth/register`, { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            token: safeToken, 
-            attestationResponse: attResp, 
-            challenge: options.challenge 
-        }),
-      });
+        setStatus('Scan your biometric key...');
+        const attResp = await startRegistration(options);
+        console.log(`[CLIENT] #${currentCall} Biometric Scan Success:`, attResp.id);
 
-      if (verifyResp.ok) {
-        setStatus('Access Granted. Redirecting...');
-        setTimeout(() => router.push('/'), 1500);
-      } else {
-        const err = await verifyResp.json();
-        throw new Error(err.error || 'Security verification failed.');
-      }
-    } catch (e: any) {
-        console.error("Auth Error:", e);
-        if (e.name === 'NotAllowedError') {
-            setStatus('Biometric scan cancelled.');
+        setStatus('Securing Account...');
+        const verifyResp = await fetch(`/api/auth/register`, { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: token, 
+                attestationResponse: attResp, 
+                challenge: options.challenge,
+                debugId: currentCall
+            }),
+        });
+
+        console.log(`[CLIENT] #${currentCall} POST Response status:`, verifyResp.status);
+
+        if (verifyResp.ok) {
+            setStatus('Access Granted!');
+            setTimeout(() => router.push('/'), 1500);
         } else {
-            setStatus(e.message);
+            const err = await verifyResp.json();
+            throw new Error(err.error || 'Verification failed');
         }
+    } catch (e: any) {
+        console.error(`[CLIENT] #${currentCall} Error:`, e);
+        setStatus(e.message);
     } finally {
+        console.log(`[CLIENT] #${currentCall} handleRegister finished (isProcessing -> false)`);
         setIsProcessing(false);
     }
-  };
+};
 
   return (
     <main className="flex items-center justify-center min-h-screen bg-black p-4 font-mono">
